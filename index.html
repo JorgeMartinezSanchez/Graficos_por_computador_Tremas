@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Tremas Aleatorias — Visualización fractal (WebGL)</title>
+  <style>
+    :root { --bg:#0b0b12; --panel:#0f1720; --accent:#7dd3fc; --muted:#94a3b8; }
+    html,body { height:100%; margin:0; background:var(--bg); font-family:Inter, Roboto, sans-serif; color:#dbeafe; }
+    #wrap { display:grid; grid-template-columns: 320px 1fr; gap:12px; height:100vh; padding:12px; box-sizing:border-box; }
+    #panel { background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:14px; width:100%; box-sizing:border-box; }
+    h2 { margin:6px 0 12px 0; font-size:16px; color:var(--accent); }
+    label { display:block; font-size:13px; color:var(--muted); margin-top:10px; }
+    .row { display:flex; align-items:center; gap:10px; margin-top:6px; }
+    input[type=range] { width:100%; }
+    button { margin-top:12px; padding:8px 10px; border-radius:8px; border:0; background:var(--accent); color:#042026; font-weight:600; cursor:pointer; }
+    #info { font-size:12px; color:var(--muted); margin-top:10px; }
+    canvas { width:100%; height:100%; display:block; border-radius:12px; background:linear-gradient(180deg,#020214, #071026); }
+    small { color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="panel">
+      <h2>Tremas Aleatorias — Controles</h2>
+
+      <label>Profundidad (depth) <small id="depthOut">4</small></label>
+      <input id="depth" type="range" min="1" max="8" step="1" value="4">
+
+      <label>Densidad (density) <small id="densityOut">0.40</small></label>
+      <input id="density" type="range" min="0.05" max="1.2" step="0.01" value="0.4">
+
+      <label>Radio base (baseRadius) <small id="radiusOut">0.18</small></label>
+      <input id="baseRadius" type="range" min="0.02" max="0.5" step="0.01" value="0.18">
+
+      <label>Muestras (samples) <small id="samplesOut">20000</small></label>
+      <input id="samples" type="range" min="1000" max="60000" step="500" value="20000">
+
+      <label>Velocidad animación (speed) <small id="speedOut">0.6</small></label>
+      <input id="speed" type="range" min="0" max="3" step="0.01" value="0.6">
+
+      <div class="row">
+        <button id="regenBtn">Regenerar fractal</button>
+        <button id="pauseBtn">Pausar anim</button>
+      </div>
+
+      <div id="info">
+        <p><strong>Notas:</strong> El fractal se genera como el conjunto residual tras eliminar tremas (círculos) aleatorios en varios niveles (capítulos 31–35, Mandelbrot). La UI controla profundidad, densidad, radio base y número de muestras—modificadores fractales reales. :contentReference[oaicite:4]{index=4}</p>
+      </div>
+    </div>
+
+    <div style="position:relative;">
+      <canvas id="glcanvas"></canvas>
+
+      <!-- SHADERS -->
+      <script id="tremas-vertex-shader" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        attribute vec3 a_color;
+        attribute float a_level;
+        uniform mat3 u_mvp; // 2D MVP in 3x3
+        uniform float u_pointSize;
+        varying vec3 v_color;
+        varying float v_level;
+        void main() {
+          vec3 pos = u_mvp * vec3(a_position, 1.0);
+          gl_Position = vec4(pos.xy, 0.0, 1.0);
+          gl_PointSize = u_pointSize;
+          v_color = a_color;
+          v_level = a_level;
+        }
+      </script>
+
+      <script id="tremas-fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec3 v_color;
+        varying float v_level;
+        uniform float u_time;
+        uniform float u_speed;
+        void main() {
+          // draw circular soft point
+          vec2 q = gl_PointCoord - 0.5;
+          float r = length(q);
+          float alpha = smoothstep(0.5, 0.45, r);
+
+          // temporal hue shift per level
+          float hueShift = sin(u_time * 0.6 * u_speed + v_level * 1.2) * 0.15;
+          vec3 col = v_color + hueShift;
+
+          // subtle halo
+          float halo = smoothstep(0.6, 0.35, r);
+          gl_FragColor = vec4(col * halo, alpha * (0.9 + 0.1*v_level));
+        }
+      </script>
+    </div>
+  </div>
+
+  <!-- REQUIRES initShaders.js y MV.js (ya están en tu proyecto) -->
+  <script src="initShaders.js"></script>
+  <script src="MV.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
